@@ -1,2 +1,47 @@
 .idea/
 *.png
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# MIDI和音频临时文件
+*.tmp
+*.temp
+*.mid~  # MIDI备份文件
+*.mp3~  # 音频备份文件
+
+# 临时文件和日志
+*.log
+*.bak
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Claude相关
+.claude/
+
+# 优化过程临时文件
+optimized_*.mid
+optimization_result_*.json

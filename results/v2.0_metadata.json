@@ -1,0 +1,29 @@
+{
+  "version": "v2.0_basic_optimized",
+  "generated_at": "2026-04-16 15:16:30",
+  "optimization_time_seconds": 252.55742120742798,
+  "optimization_strategy": "hybrid",
+  "best_params": {
+    "min_duration": 0.05,
+    "max_gap": 0.03,
+    "voicing_threshold": 0.4,
+    "harmonic_margin": 5,
+    "hop_length": 256,
+    "min_freq": 80,
+    "max_freq": 1200
+  },
+  "best_scores": {
+    "overall_score": 0.5520019887133014,
+    "melody_similarity": 0.07868013183372978,
+    "rhythm_similarity": 0.7487921364891097,
+    "pitch_coverage": 1.0,
+    "density_correlation": 0.9589229503307659,
+    "duration_similarity": 0.6809301516627659,
+    "note_count": 119,
+    "ref_note_count": 138,
+    "short_note_ratio": 0.37815126050420167
+  },
+  "note_count": 119,
+  "v1_note_count": 119,
+  "midi_file": "results\\v2.0_basic_optimized.mid"
+}
