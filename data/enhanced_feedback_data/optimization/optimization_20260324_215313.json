@@ -1,0 +1,77 @@
+{
+  "timestamp": "20260324_215313",
+  "strategy": "random",
+  "best_score": 0.3556735622497328,
+  "best_params": {
+    "sr": 44100,
+    "hop_length": 809,
+    "frame_length": 2048,
+    "min_freq": 115,
+    "max_freq": 2503,
+    "pitch_method": "hybrid",
+    "n_thresholds": 200,
+    "resolution": 0.1,
+    "voicing_threshold": 0.37714107750948694,
+    "confidence_weight": 0.3715848373806049,
+    "use_harmonic_enhancement": true,
+    "harmonic_margin": 3,
+    "median_filter_size": 5,
+    "smoothing_window": 3,
+    "interpolate_missing": true,
+    "onset_threshold": 0.6572491348194793,
+    "min_note_duration": 0.10869082637707532,
+    "max_gap": 0.08219268790214763,
+    "min_velocity": 40,
+    "max_velocity": 127,
+    "max_polyphony": 1,
+    "polyphony_threshold": 0.3
+  },
+  "history": [
+    {
+      "iteration": 0,
+      "params": {
+        "sr": 44100,
+        "hop_length": 809,
+        "frame_length": 2048,
+        "min_freq": 115,
+        "max_freq": 2503,
+        "pitch_method": "hybrid",
+        "n_thresholds": 200,
+        "resolution": 0.1,
+        "voicing_threshold": 0.37714107750948694,
+        "confidence_weight": 0.3715848373806049,
+        "use_harmonic_enhancement": true,
+        "harmonic_margin": 3,
+        "median_filter_size": 5,
+        "smoothing_window": 3,
+        "interpolate_missing": true,
+        "onset_threshold": 0.6572491348194793,
+        "min_note_duration": 0.10869082637707532,
+        "max_gap": 0.08219268790214763,
+        "min_velocity": 40,
+        "max_velocity": 127,
+        "max_polyphony": 1,
+        "polyphony_threshold": 0.3
+      },
+      "metrics": {
+        "f1": 0.151,
+        "precision": 0.144,
+        "recall": 0.159,
+        "dtw_distance": 124.53218875133602,
+        "avg_time_deviation": 0.613,
+        "max_deviation": 16.0,
+        "composite_score": 0.3556735622497328
+      },
+      "score": 0.3556735622497328,
+      "strategy": "random"
+    }
+  ],
+  "analysis": {
+    "final_score": 0.3556735622497328,
+    "best_score": 0.3556735622497328,
+    "avg_score": 0.3556735622497328,
+    "std_score": 0.0,
+    "avg_improvement": 0,
+    "converged": false
+  }
+}

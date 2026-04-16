@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(find /d/python/Yunqi -name \"*.py\" -exec grep -l \"simple\\\\|basic\\\\|original\" {} \\\\;)",
+      "Bash(ls -la *.py)",
+      "Bash(ls -la results/*.mid)",
+      "Bash(ls *.mid)",
+      "Bash(xargs rm *)",
+      "Bash(git add *)"
+    ]
+  }
+}

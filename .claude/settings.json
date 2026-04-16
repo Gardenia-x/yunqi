@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python test_pitch_optimization.py)",
+      "Read(//c/Users/LENOVO/xwechat_files/wxid_p6i000n1ye6m22_e53d/msg/file/2026-03/**)",
+      "Bash(pdftotext -v)",
+      "Bash(pdftotext \"C:\\\\Users\\\\LENOVO\\\\xwechat_files\\\\wxid_p6i000n1ye6m22_e53d\\\\msg\\\\file\\\\2026-03\\\\微处理器与系统3-寻址方式.pdf\" pdf_text.txt)",
+      "Bash(python -c \"from midi_generate_enhanced import EnhancedMIDIGenerator; print\\(''导入成功''\\)\")",
+      "Bash(python test_enhancements.py)",
+      "Bash(python test_final_improvements.py)",
+      "Bash(mv midi_generate_enhanced.py src/)",
+      "Bash(mv midi_feedback_enhanced.py src/)",
+      "Bash(mv midi_evaluator.py src/)",
+      "Bash(mv diagnose_audio.py scripts/)",
+      "Bash(mv analyze_missing_notes.py scripts/)",
+      "Bash(mv analyze_best_params.py scripts/)",
+      "Bash(mv test_final_improvements.py scripts/)",
+      "Bash(mv test_pitch_optimization.py scripts/)",
+      "Bash(mv final_optimization_test.py scripts/)",
+      "Bash(mv test_default_improved.py scripts/)",
+      "Bash(mv simple_accuracy_test.py scripts/)",
+      "Bash(mv test2.mp3 data/)",
+      "Bash(mv test2.mid data/)",
+      "Bash(mv FINAL_SUMMARY.md docs/)",
+      "Bash(mv OPTIMIZATION_RESULTS_SUMMARY.md docs/)",
+      "Bash(mv pdf_text.txt docs/)",
+      "Bash(ls -la \"converted \\(17\\)_analysis_en.png\")",
+      "Bash(python scripts/test_default_improved.py)",
+      "Bash(python test_new_default.py)",
+      "Bash(timeout 30 python analyze_latest.py)"
+    ]
+  }
+}

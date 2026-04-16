@@ -1,0 +1,32 @@
+{
+  "baseline_f1": 0.258,
+  "informed_f1": 0.25,
+  "optimized_f1": 0.258,
+  "improvement_from_default": -0.008000000000000007,
+  "improvement_from_informed": 0.008000000000000007,
+  "total_improvement": 0.0,
+  "best_params": {
+    "sr": 44100,
+    "hop_length": 357,
+    "frame_length": 2048,
+    "min_freq": 114,
+    "max_freq": 1125,
+    "pitch_method": "pyin",
+    "n_thresholds": 200,
+    "resolution": 0.1,
+    "voicing_threshold": 0.6976546018727738,
+    "confidence_weight": 0.5529041009601319,
+    "use_harmonic_enhancement": true,
+    "harmonic_margin": 3,
+    "median_filter_size": 5,
+    "smoothing_window": 3,
+    "interpolate_missing": true,
+    "onset_threshold": 0.44995712530776594,
+    "min_note_duration": 0.2673338261115775,
+    "max_gap": 0.09579888711684148,
+    "min_velocity": 40,
+    "max_velocity": 127,
+    "max_polyphony": 1,
+    "polyphony_threshold": 0.3
+  }
+}

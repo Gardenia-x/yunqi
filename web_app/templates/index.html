@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI评分系统 - Web版</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-music"></i> MIDI评分系统 v4.5</h1>
+            <p class="subtitle">上传参考MIDI文件和测试MIDI文件，获取详细性能分析报告</p>
+        </header>
+
+        <main class="main-content">
+            <div class="upload-section">
+                <h2><i class="fas fa-upload"></i> 上传MIDI文件</h2>
+                <div class="upload-form">
+                    <div class="form-group">
+                        <label for="reference_file">
+                            <i class="fas fa-file-audio"></i> 参考MIDI文件（标准版本）
+                        </label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="reference_file" name="reference_file" accept=".mid,.midi" required>
+                            <div class="file-info" id="reference_info">未选择文件</div>
+                            <button type="button" class="btn-file" onclick="document.getElementById('reference_file').click()">
+                                <i class="fas fa-folder-open"></i> 选择文件
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="test_file">
+                            <i class="fas fa-file-alt"></i> 测试MIDI文件（待评估版本）
+                        </label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="test_file" name="test_file" accept=".mid,.midi" required>
+                            <div class="file-info" id="test_info">未选择文件</div>
+                            <button type="button" class="btn-file" onclick="document.getElementById('test_file').click()">
+                                <i class="fas fa-folder-open"></i> 选择文件
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" id="analyzeBtn" class="btn-primary" onclick="analyzeFiles()">
+                            <i class="fas fa-chart-bar"></i> 开始分析
+                        </button>
+                        <button type="button" id="resetBtn" class="btn-secondary" onclick="resetForm()">
+                            <i class="fas fa-redo"></i> 重置
+                        </button>
+                    </div>
+                </div>
+
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-header">
+                        <h3><i class="fas fa-spinner fa-spin"></i> 分析进行中...</h3>
+                        <span id="progressText">正在处理文件...</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h2><i class="fas fa-chart-line"></i> 分析结果</h2>
+
+                <div class="results-grid">
+                    <div class="result-card accuracy-card">
+                        <h3><i class="fas fa-bullseye"></i> 音符准确度</h3>
+                        <div class="metrics">
+                            <div class="metric">
+                                <span class="metric-label">精确率 (Precision)</span>
+                                <span class="metric-value" id="precision">0.000</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">召回率 (Recall)</span>
+                                <span class="metric-value" id="recall">0.000</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">F1分数</span>
+                                <span class="metric-value" id="f1">0.000</span>
+                            </div>
+                        </div>
+                        <div class="tolerance-info">
+                            <p><i class="fas fa-clock"></i> 时间容差: <span id="onset_tol">0.0</span> 拍</p>
+                            <p><i class="fas fa-sliders-h"></i> 音高容差: <span id="pitch_tol">3</span> 半音</p>
+                        </div>
+                    </div>
+
+                    <div class="result-card rhythm-card">
+                        <h3><i class="fas fa-drum"></i> 节奏分析</h3>
+                        <div class="metrics">
+                            <div class="metric">
+                                <span class="metric-label">DTW距离</span>
+                                <span class="metric-value" id="dtw_distance">0.0</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">平均时间偏差</span>
+                                <span class="metric-value" id="avg_deviation">0.000</span>
+                                <span class="metric-unit">拍</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">最大时间偏差</span>
+                                <span class="metric-value" id="max_deviation">0.000</span>
+                                <span class="metric-unit">拍</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="visualization-section">
+                    <h3><i class="fas fa-chart-area"></i> 可视化分析</h3>
+                    <div class="image-container" id="imageContainer">
+                        <!-- 分析图像将在这里显示 -->
+                        <p class="image-placeholder">分析完成后，可视化图表将显示在这里</p>
+                    </div>
+                </div>
+
+                <div class="actions-section">
+                    <button type="button" class="btn-download" onclick="downloadReport()">
+                        <i class="fas fa-download"></i> 下载完整报告
+                    </button>
+                    <button type="button" class="btn-new" onclick="resetForm()">
+                        <i class="fas fa-plus"></i> 新分析
+                    </button>
+                </div>
+            </div>
+
+            <div class="error-section" id="errorSection" style="display: none;">
+                <div class="error-card">
+                    <h3><i class="fas fa-exclamation-triangle"></i> 错误</h3>
+                    <p id="errorMessage">发生未知错误</p>
+                    <button type="button" class="btn-primary" onclick="hideError()">
+                        <i class="fas fa-times"></i> 关闭
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>MIDI评分系统 v4.5 &copy; 2026 | 基于优化的Python分析引擎</p>
+            <p class="tech-info">技术支持: music21, FastDTW, NumPy, Matplotlib</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

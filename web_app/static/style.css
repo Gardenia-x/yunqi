@@ -1,0 +1,494 @@
+/* MIDI评分系统 - 样式表 */
+
+:root {
+    --primary-color: #4361ee;
+    --primary-dark: #3a56d4;
+    --secondary-color: #7209b7;
+    --success-color: #4cc9f0;
+    --warning-color: #f72585;
+    --danger-color: #f72585;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --gray-color: #6c757d;
+    --light-gray: #e9ecef;
+    --border-radius: 12px;
+    --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    color: var(--dark-color);
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* 头部样式 */
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 30px;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.header h1 i {
+    margin-right: 15px;
+}
+
+.subtitle {
+    font-size: 1.1rem;
+    color: var(--gray-color);
+    font-weight: 400;
+}
+
+/* 主要内容 */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* 上传区域 */
+.upload-section, .results-section {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 30px;
+}
+
+.upload-section h2, .results-section h2 {
+    color: var(--primary-color);
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+}
+
+.upload-section h2 i, .results-section h2 i {
+    margin-right: 10px;
+}
+
+/* 表单样式 */
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--dark-color);
+    font-size: 1.1rem;
+}
+
+.form-group label i {
+    margin-right: 8px;
+    color: var(--primary-color);
+}
+
+.file-input-wrapper {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.file-input-wrapper input[type="file"] {
+    display: none;
+}
+
+.file-info {
+    flex: 1;
+    padding: 15px 20px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+    border: 2px dashed #adb5bd;
+    color: var(--gray-color);
+    font-size: 0.95rem;
+    transition: var(--transition);
+}
+
+.file-info.selected {
+    border-color: var(--primary-color);
+    color: var(--dark-color);
+    background: #e9ecef;
+}
+
+.btn-file {
+    padding: 15px 25px;
+    background: var(--light-gray);
+    color: var(--dark-color);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-file:hover {
+    background: #dee2e6;
+}
+
+.btn-file i {
+    font-size: 1.1rem;
+}
+
+/* 按钮样式 */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.btn-primary, .btn-secondary, .btn-download, .btn-new {
+    padding: 16px 32px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+    flex: 2;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: var(--light-gray);
+    color: var(--dark-color);
+    flex: 1;
+}
+
+.btn-secondary:hover {
+    background: #dee2e6;
+}
+
+.btn-download {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.btn-download:hover {
+    background: #5a0a9c;
+    transform: translateY(-2px);
+}
+
+.btn-new {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-new:hover {
+    background: #3ab0d9;
+    transform: translateY(-2px);
+}
+
+/* 进度条 */
+.progress-container {
+    margin-top: 30px;
+    padding: 20px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.progress-header h3 {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#progressText {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}
+
+.progress-bar {
+    height: 8px;
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+/* 结果区域 */
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.result-card {
+    padding: 25px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    transition: var(--transition);
+}
+
+.result-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+}
+
+.accuracy-card {
+    border-top: 4px solid var(--primary-color);
+}
+
+.rhythm-card {
+    border-top: 4px solid var(--secondary-color);
+}
+
+.result-card h3 {
+    color: var(--dark-color);
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.metric:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-weight: 500;
+    color: var(--gray-color);
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark-color);
+}
+
+.metric-unit {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+    margin-left: 5px;
+}
+
+.tolerance-info {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--light-gray);
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}
+
+.tolerance-info p {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 可视化区域 */
+.visualization-section {
+    margin-top: 30px;
+    padding: 25px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+}
+
+.visualization-section h3 {
+    color: var(--dark-color);
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.image-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 30px;
+    text-align: center;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #adb5bd;
+}
+
+.image-placeholder {
+    color: var(--gray-color);
+    font-size: 1.1rem;
+}
+
+.image-container img {
+    max-width: 100%;
+    border-radius: var(--border-radius);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 操作区域 */
+.actions-section {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    justify-content: center;
+}
+
+/* 错误区域 */
+.error-section {
+    margin-top: 30px;
+}
+
+.error-card {
+    padding: 25px;
+    background: #fdf2f2;
+    border-left: 4px solid var(--danger-color);
+    border-radius: var(--border-radius);
+}
+
+.error-card h3 {
+    color: var(--danger-color);
+    margin-bottom: 15px;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#errorMessage {
+    color: var(--dark-color);
+    margin-bottom: 20px;
+}
+
+/* 页脚 */
+.footer {
+    text-align: center;
+    margin-top: 50px;
+    padding: 20px;
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}
+
+.tech-info {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 2rem;
+    }
+
+    .header, .upload-section, .results-section {
+        padding: 20px;
+    }
+
+    .file-input-wrapper {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-file {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .actions-section {
+        flex-direction: column;
+    }
+
+    .metric-value {
+        font-size: 1.3rem;
+    }
+}
+
+/* 动画 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.results-section {
+    animation: fadeIn 0.5s ease;
+}
+
+/* 加载动画 */
+.fa-spin {
+    animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
