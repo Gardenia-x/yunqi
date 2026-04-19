@@ -1,0 +1,32 @@
+{
+  "version": "v3.0_algorithm_improved",
+  "generated_at": "2026-04-16 17:03:30",
+  "generation_time_seconds": 367.8770704269409,
+  "config": {
+    "min_duration": 0.05,
+    "max_gap": 0.03,
+    "voicing_threshold": 0.4,
+    "harmonic_margin": 5,
+    "hop_length": 256,
+    "min_freq": 80,
+    "max_freq": 1200,
+    "pitch_smooth_window": 7,
+    "note_merge_threshold": 2,
+    "dynamic_onset_detection": true,
+    "energy_threshold_ratio": 0.3,
+    "min_silence_duration": 0.02
+  },
+  "note_count": 61,
+  "auditory_scores": {
+    "v1.0": 0.5542019038103939,
+    "v2.0": 0.5520788462564197,
+    "v3.0": 0.28833063637422623
+  },
+  "midi_file": "results\\v3.0_algorithm_improved.mid",
+  "algorithm_improvements": [
+    "\u97f3\u9ad8\u5e73\u6ed1\u5904\u7406 (pitch_smooth_window=7)",
+    "\u667a\u80fd\u97f3\u7b26\u5408\u5e76 (note_merge_threshold=2\u534a\u97f3)",
+    "\u52a8\u6001onset\u68c0\u6d4b (\u57fa\u4e8e\u80fd\u91cf\u53d8\u5316)",
+    "\u80fd\u91cf\u8fb9\u754c\u8c03\u6574 (\u4f7f\u8fb9\u754c\u66f4\u81ea\u7136)"
+  ]
+}

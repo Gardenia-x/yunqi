@@ -7,7 +7,10 @@
       "Bash(ls -la results/*.mid)",
       "Bash(ls *.mid)",
       "Bash(xargs rm *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, 'src'\\); from enhanced_midi_generator import EnhancedMIDIGenerator; print\\('增强生成器导入成功'\\)\")",
+      "Bash(python scripts/generate_v3_enhanced.py)"
     ]
   }
 }
