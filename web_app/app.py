@@ -1,137 +1,270 @@
 """
-MIDI Score Evaluation Web Application
-基于优化的MIDI评分系统，提供Web界面
+MP3 → MIDI 转换 Web 服务
+上传 MP3 音频，自动生成 MIDI 文件
+基于 SimpleMIDIGenerator (v1.0 原始方法)
 """
 import os
+import sys
 import uuid
+import time
 import shutil
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_from_directory, url_for
-from werkzeug.utils import secure_filename
 
-# 导入分析模块
-import sys
-sys.path.append('..')  # 添加父目录以导入midi_evaluator.py
-from midi_evaluator import ScoreEvaluator
+from fastapi import FastAPI, File, UploadFile, Request, Form
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB最大文件大小
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['ANALYSIS_FOLDER'] = 'analysis_outputs'
-app.config['SECRET_KEY'] = 'dev-secret-key-change-in-production'
+# 添加 src 目录到路径
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# 确保目录存在
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['ANALYSIS_FOLDER'], exist_ok=True)
+import pretty_midi
+from simple_midi_generator import SimpleMIDIGenerator
 
-# 允许的文件扩展名
-ALLOWED_EXTENSIONS = {'mid', 'midi'}
+app = FastAPI(title="MP3 → MIDI 转换器", version="1.0")
 
-def allowed_file(filename):
-    """检查文件扩展名是否允许"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# 配置
+BASE_DIR = Path(__file__).parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+OUTPUT_DIR = BASE_DIR / "outputs"
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
 
-@app.route('/')
-def index():
-    """主页 - 文件上传表单"""
-    return render_template('index.html')
+for d in [UPLOAD_DIR, OUTPUT_DIR]:
+    d.mkdir(exist_ok=True)
 
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    """处理文件上传并进行分析"""
+# 静态文件和模板
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+# 最大上传 50MB
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024
+
+# 版本配置
+VERSIONS = {
+    "v1.0": {
+        "name": "v1.0 原始方法",
+        "description": "听觉体验最佳，参数保守",
+        "config": {
+            "sr": 44100,
+            "hop_length": 512,
+            "min_freq": 80,
+            "max_freq": 1200,
+            "min_duration": 0.1,
+            "max_gap": 0.05,
+            "voicing_threshold": 0.6,
+            "harmonic_margin": 3,
+        },
+    },
+    "v2.0": {
+        "name": "v2.0 参数优化",
+        "description": "提高时间分辨率，检测更多细节",
+        "config": {
+            "sr": 44100,
+            "hop_length": 256,
+            "min_freq": 80,
+            "max_freq": 1200,
+            "min_duration": 0.05,
+            "max_gap": 0.03,
+            "voicing_threshold": 0.4,
+            "harmonic_margin": 5,
+        },
+    },
+    "v3.0": {
+        "name": "v3.0 短音符增强",
+        "description": "增强谐波检测与短音符识别",
+        "config": {
+            "sr": 44100,
+            "hop_length": 256,
+            "min_freq": 80,
+            "max_freq": 1200,
+            "min_duration": 0.05,
+            "max_gap": 0.03,
+            "voicing_threshold": 0.4,
+            "harmonic_margin": 6,
+        },
+    },
+}
+
+# 任务存储（简单内存存储，生产环境建议用 Redis/DB）
+tasks: dict = {}
+
+
+def convert_mp3_to_midi(mp3_path: Path, version: str = "v1.0") -> tuple:
+    """
+    将 MP3 文件转换为 MIDI
+
+    Returns:
+        (midi_bytes, note_count, elapsed_time)
+    """
+    version_info = VERSIONS.get(version, VERSIONS["v1.0"])
+    config = version_info["config"]
+
+    start = time.time()
+
+    with open(mp3_path, "rb") as f:
+        audio_bytes = f.read()
+
+    generator = SimpleMIDIGenerator(config)
+    midi = generator.process_audio(audio_bytes)
+
+    elapsed = time.time() - start
+    note_count = len(midi.instruments[0].notes) if midi.instruments else 0
+
+    # 写入临时文件
+    task_id = uuid.uuid4().hex[:12]
+    output_path = OUTPUT_DIR / f"{task_id}.mid"
+    midi.write(str(output_path))
+
+    return output_path, note_count, elapsed, task_id
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """主页：文件上传界面"""
+    version_list = [
+        {"key": k, "name": v["name"], "desc": v["description"]}
+        for k, v in VERSIONS.items()
+    ]
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "version_list": version_list},
+    )
+
+
+@app.post("/api/convert")
+async def api_convert(file: UploadFile = File(...), version: str = Form("v1.0")):
+    """上传 MP3 并转换为 MIDI"""
+    # 验证文件类型
+    if not file.filename or not file.filename.lower().endswith((".mp3", ".wav", ".m4a", ".flac", ".ogg")):
+        return JSONResponse(
+            {"error": "仅支持 MP3, WAV, M4A, FLAC, OGG 格式"},
+            status_code=400,
+        )
+
+    # 验证版本
+    if version not in VERSIONS:
+        return JSONResponse({"error": f"未知版本: {version}"}, status_code=400)
+
+    # 保存上传文件
+    file_id = uuid.uuid4().hex[:16]
+    safe_name = f"{file_id}_{file.filename}"
+    upload_path = UPLOAD_DIR / safe_name
+
     try:
-        # 检查是否有文件被上传
-        if 'reference_file' not in request.files or 'test_file' not in request.files:
-            return jsonify({'error': '请选择参考文件和测试文件'}), 400
+        # 读取并保存
+        content = await file.read()
+        if len(content) > MAX_UPLOAD_SIZE:
+            return JSONResponse(
+                {"error": f"文件过大，最大支持 {MAX_UPLOAD_SIZE // 1024 // 1024}MB"},
+                status_code=400,
+            )
 
-        reference_file = request.files['reference_file']
-        test_file = request.files['test_file']
+        with open(upload_path, "wb") as f:
+            f.write(content)
 
-        # 检查文件名
-        if reference_file.filename == '' or test_file.filename == '':
-            return jsonify({'error': '没有选择文件'}), 400
+        # 转换为 MIDI
+        output_path, note_count, elapsed, task_id = convert_mp3_to_midi(
+            upload_path, version
+        )
 
-        if not (allowed_file(reference_file.filename) and allowed_file(test_file.filename)):
-            return jsonify({'error': '只支持MIDI文件 (.mid, .midi)'}), 400
-
-        # 生成唯一会话ID
-        session_id = str(uuid.uuid4())[:8]
-        session_folder = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
-        os.makedirs(session_folder, exist_ok=True)
-
-        # 保存文件
-        ref_filename = secure_filename(f"reference_{session_id}.mid")
-        test_filename = secure_filename(f"test_{session_id}.mid")
-        ref_path = os.path.join(session_folder, ref_filename)
-        test_path = os.path.join(session_folder, test_filename)
-
-        reference_file.save(ref_path)
-        test_file.save(test_path)
-
-        # 调用分析函数
-        results = analyze_midi(ref_path, test_path, session_id)
-
-        # 返回结果
-        return jsonify(results)
-
-    except Exception as e:
-        app.logger.error(f"分析错误: {str(e)}")
-        return jsonify({'error': f'分析失败: {str(e)}'}), 500
-
-def analyze_midi(ref_path, test_path, session_id):
-    """分析MIDI文件并返回结果"""
-    try:
-        # 创建分析器实例
-        evaluator = ScoreEvaluator(Path(ref_path), Path(test_path))
-
-        # 获取分析结果
-        accuracy = evaluator.note_accuracy()
-        rhythm = evaluator.rhythm_analysis()
-
-        # 生成可视化报告
-        output_folder = os.path.join(app.config['ANALYSIS_FOLDER'], session_id)
-        os.makedirs(output_folder, exist_ok=True)
-
-        # 生成可视化（直接保存到指定文件夹）
-        image_path = evaluator.generate_visual_report(output_dir=output_folder)
-
-        # 获取图像文件名
-        image_filename = os.path.basename(image_path)
-
-        # 准备结果
-        results = {
-            'session_id': session_id,
-            'accuracy': accuracy,
-            'rhythm': rhythm,
-            'image_url': f'/analysis_output/{session_id}/{image_filename}'
+        # 记录任务
+        tasks[task_id] = {
+            "filename": file.filename,
+            "version": version,
+            "note_count": note_count,
+            "elapsed": round(elapsed, 1),
+            "output": str(output_path),
+            "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        return results
+        return {
+            "success": True,
+            "task_id": task_id,
+            "filename": file.filename,
+            "version": version,
+            "note_count": note_count,
+            "elapsed_seconds": round(elapsed, 1),
+            "download_url": f"/api/download/{task_id}",
+        }
 
     except Exception as e:
-        raise Exception(f"MIDI分析错误: {str(e)}")
+        return JSONResponse({"error": f"转换失败: {str(e)}"}, status_code=500)
 
-@app.route('/analysis_output/<session_id>/<filename>')
-def serve_analysis_output(session_id, filename):
-    """提供分析结果图像"""
-    folder_path = os.path.join(app.config['ANALYSIS_FOLDER'], session_id)
-    return send_from_directory(folder_path, filename)
+    finally:
+        # 清理上传文件
+        if upload_path.exists():
+            try:
+                upload_path.unlink()
+            except Exception:
+                pass
 
-@app.route('/cleanup/<session_id>', methods=['POST'])
-def cleanup_session(session_id):
-    """清理会话文件（可选）"""
-    try:
-        upload_folder = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
-        analysis_folder = os.path.join(app.config['ANALYSIS_FOLDER'], session_id)
 
-        if os.path.exists(upload_folder):
-            shutil.rmtree(upload_folder)
-        if os.path.exists(analysis_folder):
-            shutil.rmtree(analysis_folder)
+@app.get("/api/download/{task_id}")
+async def api_download(task_id: str):
+    """下载生成的 MIDI 文件"""
+    if task_id not in tasks:
+        return JSONResponse({"error": "任务不存在或已过期"}, status_code=404)
 
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    task = tasks[task_id]
+    output_path = Path(task["output"])
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8080)
+    if not output_path.exists():
+        return JSONResponse({"error": "文件已被清理"}, status_code=404)
+
+    # 生成下载文件名
+    original_name = Path(task["filename"]).stem
+    download_name = f"{original_name}_{task['version']}.mid"
+
+    return FileResponse(
+        path=str(output_path),
+        filename=download_name,
+        media_type="audio/midi",
+        headers={"X-Note-Count": str(task["note_count"])},
+    )
+
+
+@app.get("/api/versions")
+async def api_versions():
+    """获取可用版本列表"""
+    return {
+        version: {
+            "name": info["name"],
+            "description": info["description"],
+        }
+        for version, info in VERSIONS.items()
+    }
+
+
+@app.get("/health")
+async def health():
+    """健康检查"""
+    return {"status": "ok", "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")}
+
+
+# 定时清理旧文件（每次请求时检查）
+@app.middleware("http")
+async def cleanup_old_files(request: Request, call_next):
+    """清理超过 1 小时的旧文件"""
+    now = time.time()
+    max_age = 3600  # 1 小时
+
+    for directory in [UPLOAD_DIR, OUTPUT_DIR]:
+        for f in directory.iterdir():
+            if f.is_file() and (now - f.stat().st_mtime) > max_age:
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+
+    # 清理过期任务
+    expired = [
+        tid
+        for tid, t in tasks.items()
+        if not Path(t["output"]).exists()
+    ]
+    for tid in expired:
+        del tasks[tid]
+
+    return await call_next(request)

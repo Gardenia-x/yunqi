@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-生成v5.0_short_note_improved.mid
+生成v3.0_short_note_improved.mid
 专注于改进短音符检测，保持v1.0的流畅度
 """
 import sys
@@ -229,7 +229,7 @@ def create_midi_with_short_note_support(f0: np.ndarray, voiced_flag: np.ndarray,
 
 
 def main():
-    print("生成v5.0_short_note_improved.mid")
+    print("生成v3.0_short_note_improved.mid")
     print("=" * 70)
 
     # 检查文件
@@ -255,10 +255,9 @@ def main():
     # 加载之前的版本信息
     v1_path = output_dir / "v1.0_original.mid"
     v2_path = output_dir / "v2.0_basic_optimized.mid"
-    v4_path = output_dir / "v4.0_conservative_improved.mid"
 
-    # v5.0配置：基于v2.0优化参数，但专注短音符和特定音高
-    v5_config = {
+    # v3.0配置：基于v2.0优化参数，但专注短音符和特定音高
+    v3_config = {
         # 基于v2.0优化参数（用户说与v1.0听不出区别）
         'min_duration': 0.05,           # 降低以检测更多短音符
         'max_gap': 0.03,               # 减少间隙
@@ -276,12 +275,12 @@ def main():
         'target_frequencies': [440, 659],  # A4和E5
     }
 
-    print(f"v5.0配置（专注短音符和特定音高检测）:")
-    for key, value in v5_config.items():
+    print(f"v3.0配置（专注短音符和特定音高检测）:")
+    for key, value in v3_config.items():
         if key not in ['target_frequencies']:
             print(f"  {key}: {value}")
 
-    print(f"\n开始生成v5.0版本...")
+    print(f"\n开始生成v3.0版本...")
     print("改进策略:")
     print("  1. 使用v2.0优化参数（与v1.0听觉无差异）")
     print("  2. 增强谐波检测（harmonic_margin=6）针对A4(440Hz)和E5(659Hz)")
@@ -294,7 +293,7 @@ def main():
 
     try:
         # 加载音频
-        y, sr = librosa.load(audio_path, sr=v5_config['sr'], mono=True)
+        y, sr = librosa.load(audio_path, sr=v3_config['sr'], mono=True)
 
         # 音频预处理（与原始方法相同）
         y = librosa.effects.preemphasis(y, coef=0.97)
@@ -302,29 +301,29 @@ def main():
 
         # 多尺度音高检测
         print(f"\n执行音高检测...")
-        f0, voiced_flag = multi_scale_pitch_detection(y, sr, v5_config)
+        f0, voiced_flag = multi_scale_pitch_detection(y, sr, v3_config)
 
         # 生成MIDI（支持短音符）
         print(f"生成MIDI...")
-        midi = create_midi_with_short_note_support(f0, voiced_flag, sr, v5_config)
+        midi = create_midi_with_short_note_support(f0, voiced_flag, sr, v3_config)
 
         elapsed = time.time() - start_time
 
-        # 保存v5.0版本
-        v5_path = output_dir / "v5.0_short_note_improved.mid"
-        midi.write(str(v5_path))
+        # 保存v3.0版本
+        v3_path = output_dir / "v3.0_short_note_improved.mid"
+        midi.write(str(v3_path))
 
-        # 分析v5.0
-        v5_midi = pretty_midi.PrettyMIDI(str(v5_path))
-        v5_notes = len(v5_midi.instruments[0].notes) if v5_midi.instruments else 0
+        # 分析v3.0
+        v3_midi = pretty_midi.PrettyMIDI(str(v3_path))
+        v3_notes = len(v3_midi.instruments[0].notes) if v3_midi.instruments else 0
 
         print(f"\n生成完成! 耗时: {elapsed:.1f} 秒")
-        print(f"v5.0信息:")
-        print(f"  音符数: {v5_notes}")
+        print(f"v3.0信息:")
+        print(f"  音符数: {v3_notes}")
 
         # 对比之前的版本
         versions_to_compare = []
-        for name, path in [('v1.0', v1_path), ('v2.0', v2_path), ('v4.0', v4_path), ('v5.0', v5_path)]:
+        for name, path in [('v1.0', v1_path), ('v2.0', v2_path), ('v3.0', v3_path)]:
             if path.exists():
                 try:
                     midi_obj = pretty_midi.PrettyMIDI(str(path))
@@ -351,19 +350,19 @@ def main():
                     scores[name] = 0.0
 
         # 计算改进百分比
-        if 'v1.0' in scores and 'v5.0' in scores:
-            improvement_v1 = (scores['v5.0'] - scores['v1.0']) / scores['v1.0'] * 100
-            print(f"  v5.0相对于v1.0改进: {improvement_v1:+.1f}%")
+        if 'v1.0' in scores and 'v3.0' in scores:
+            improvement_v1 = (scores['v3.0'] - scores['v1.0']) / scores['v1.0'] * 100
+            print(f"  v3.0相对于v1.0改进: {improvement_v1:+.1f}%")
 
-        # 保存v5.0元数据
+        # 保存v3.0元数据
         metadata = {
-            'version': 'v5.0_short_note_improved',
+            'version': 'v3.0_short_note_improved',
             'generated_at': time.strftime("%Y-%m-%d %H:%M:%S"),
             'generation_time_seconds': elapsed,
-            'config': v5_config,
-            'note_count': v5_notes,
+            'config': v3_config,
+            'note_count': v3_notes,
             'auditory_scores': scores,
-            'midi_file': str(v5_path),
+            'midi_file': str(v3_path),
             'improvement_focus': [
                 '短音符检测改进（min_duration=0.05）',
                 '特定音高增强（A4:440Hz, E5:659Hz）',
@@ -374,19 +373,19 @@ def main():
             'design_goal': '在保持v1.0流畅度的前提下，改进短音符和特定音高检测'
         }
 
-        metadata_path = output_dir / "v5.0_metadata.json"
+        metadata_path = output_dir / "v3.0_metadata.json"
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
 
         print(f"\n元数据已保存: {metadata_path}")
 
         # 打印预期效果
-        print(f"\nv5.0预期效果:")
+        print(f"\nv3.0预期效果:")
         print("  1. 音符数应比v1.0多（检测更多短音符）")
         print("  2. 应保持v1.0的流畅度（不做音符合并）")
         print("  3. 应改善A4/E5音高的检测")
         print("  4. 听觉相似度评分可能提高（如果短音符检测改进）")
-        print(f"\n请试听: {v5_path}")
+        print(f"\n请试听: {v3_path}")
         print("对比v1.0_original.mid，关注:")
         print("  - 流畅度是否保持（不应比v1.0差）")
         print("  - 是否检测到更多细节（特别是快速音符）")
@@ -416,12 +415,12 @@ def main():
             })
             midi = generator.process_audio(audio_bytes)
 
-            v5_path = output_dir / "v5.0_short_note_improved.mid"
-            midi.write(str(v5_path))
+            v3_path = output_dir / "v3.0_short_note_improved.mid"
+            midi.write(str(v3_path))
 
             note_count = len(midi.instruments[0].notes) if midi.instruments else 0
-            print(f"回退方案生成v5.0: {note_count} 音符")
-            print(f"保存到: {v5_path}")
+            print(f"回退方案生成v3.0: {note_count} 音符")
+            print(f"保存到: {v3_path}")
 
         except Exception as e2:
             print(f"回退方案也失败: {e2}")

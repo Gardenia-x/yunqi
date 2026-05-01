@@ -45,3 +45,12 @@ Thumbs.db
 # 优化过程临时文件
 optimized_*.mid
 optimization_result_*.json
+
+# 测试音频大文件
+data/*.mp3
+
+# 调试输出
+results/debug_*.mid
+results/generalization_test/
+results/generalization_final/
+scripts/debug_*.py

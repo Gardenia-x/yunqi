@@ -47,7 +47,7 @@ def main():
     versions = [
         ("v1.0_original", "results/v1.0_original.mid"),
         ("v2.0_basic_optimized", "results/v2.0_basic_optimized.mid"),
-        ("v3.0_algorithm_improved", "results/v3.0_algorithm_improved.mid"),
+        ("v3.0_short_note_improved", "results/v3.0_short_note_improved.mid"),
     ]
 
     if not Path(ref_path).exists():
