@@ -1,7 +1,6 @@
 """
 乐谱生成服务
-使用 music21 将 MIDI 转为五线谱 PNG / PDF
-需要 MuseScore (或 LilyPond) 作为渲染后端
+使用 music21 + MuseScore 将 MIDI 转为五线谱 PNG
 """
 import os
 import uuid
@@ -10,10 +9,10 @@ import subprocess
 from pathlib import Path
 from io import BytesIO
 
-import pretty_midi
-import numpy as np
+# 关键：让 Qt/MuseScore 在无图形界面的服务器上离屏渲染
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-# music21 设置
+import pretty_midi
 from music21 import environment, converter
 
 _initialized = False
@@ -29,15 +28,12 @@ def _init_music21():
 
     _initialized = True
 
-    # 查找 MuseScore
     candidates = [
         shutil.which("musescore4"),
         shutil.which("musescore"),
         shutil.which("musescore3"),
         "/usr/bin/musescore",
         "/usr/bin/musescore3",
-        "/snap/bin/musescore",
-        "/opt/musescore/bin/musescore",
     ]
     for path in candidates:
         if path and Path(path).exists():
@@ -47,7 +43,6 @@ def _init_music21():
     if _mscore_path:
         env = environment.Environment()
         env["musescoreDirectPNGPath"] = _mscore_path
-        # 设置临时目录
         temp_dir = Path("/tmp/music21")
         temp_dir.mkdir(exist_ok=True)
         env["directoryScratch"] = str(temp_dir)
@@ -57,34 +52,27 @@ def _init_music21():
 
 def sheet_music_available() -> bool:
     """检查乐谱生成是否可用"""
-    path = _init_music21()
-    return path is not None
+    return _init_music21() is not None
 
 
 def generate_sheet(midi: pretty_midi.PrettyMIDI, fmt: str = "png") -> bytes:
     """
     将 MIDI 转为五线谱图片
-
-    Args:
-        midi: pretty_midi.PrettyMIDI 对象
-        fmt: 输出格式 (png, pdf, musicxml)
-
-    Returns:
-        文件二进制内容
+    使用 music21 内置的 MuseScore 转换（自动处理环境变量）
     """
     mscore = _init_music21()
     if not mscore:
-        raise RuntimeError("MuseScore 未安装，无法生成乐谱。请在服务器上安装 MuseScore。")
+        raise RuntimeError("MuseScore 未安装")
 
     if not midi.instruments or not midi.instruments[0].notes:
-        raise ValueError("MIDI 不含有效音符，无法生成乐谱")
+        raise ValueError("MIDI 不含有效音符")
 
     temp_dir = Path("/tmp/music21_sheet")
     temp_dir.mkdir(exist_ok=True)
     uid = uuid.uuid4().hex[:10]
 
     midi_path = temp_dir / f"in_{uid}.mid"
-    out_path = temp_dir / f"out_{uid}.{fmt}"
+    out_stem = temp_dir / f"out_{uid}"
 
     try:
         midi.write(str(midi_path))
@@ -95,34 +83,21 @@ def generate_sheet(midi: pretty_midi.PrettyMIDI, fmt: str = "png") -> bytes:
             score.write("musicxml", fp=str(xml_path))
             return xml_path.read_bytes()
 
-        # PNG/PDF 通过 MuseScore CLI
-        cmd = [mscore, "--force", str(midi_path.resolve()), "--export-to", str(out_path.resolve())]
-        if fmt == "png":
-            cmd.extend(["-T", "1"])
+        # 用 music21 的 write() 生成 PNG——它内部调用 MuseScore，会自动继承 QT_QPA_PLATFORM
+        score = converter.parse(str(midi_path))
+        score.write("musicxml.png", fp=str(out_stem))
 
-        # QT_QPA_PLATFORM=offscreen 让 Qt 在无图形界面服务器上离屏渲染
-        result = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=300,
-            encoding="utf-8",
-            errors="replace",
-            env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
-        )
-
-        if not out_path.exists():
-            # 尝试查找变体文件名
-            candidates = list(temp_dir.glob(f"out*{uid}*.{fmt}"))
+        # music21 会在 out_stem 后面自动加 .png
+        actual_path = Path(str(out_stem) + ".png")
+        if not actual_path.exists():
+            # MuseScore 有时输出到不同位置，搜索一下
+            candidates = list(temp_dir.glob(f"out*{uid}*.png"))
             if candidates:
-                out_path = candidates[0]
+                actual_path = candidates[0]
             else:
-                raise FileNotFoundError(
-                    f"乐谱生成失败（MuseScore 退出码 {result.returncode}）。"
-                    f"输出: {result.stdout[:300]}"
-                )
+                raise FileNotFoundError("MuseScore 未生成 PNG 文件")
 
-        return out_path.read_bytes()
+        return actual_path.read_bytes()
 
     finally:
         for f in temp_dir.glob(f"*{uid}*"):
