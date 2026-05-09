@@ -4,7 +4,11 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     ffmpeg \
+    musescore3 \
+    fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/*
+
+ENV MUSIC21_TEMPDIR=/tmp/music21
 
 # 工作目录
 WORKDIR /app

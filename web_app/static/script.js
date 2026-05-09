@@ -1,4 +1,4 @@
-// MP3 → MIDI 转换器 - 前端脚本
+// 韵启 — MP3 → MIDI 转换器 - 前端脚本
 
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
@@ -9,6 +9,7 @@ const progressSection = document.getElementById('progressSection');
 const resultSection = document.getElementById('resultSection');
 const errorSection = document.getElementById('errorSection');
 const progressFill = document.getElementById('progressFill');
+const visualizations = document.getElementById('visualizations');
 
 let selectedFile = null;
 
@@ -69,6 +70,10 @@ function formatSize(bytes) {
 
 convertBtn.addEventListener('click', convert);
 
+function updateProgress(msg) {
+    document.getElementById('progressText').textContent = msg;
+}
+
 async function convert() {
     if (!selectedFile) return;
 
@@ -76,12 +81,28 @@ async function convert() {
     progressSection.style.display = 'block';
     progressFill.classList.add('active');
     resultSection.style.display = 'none';
+    visualizations.style.display = 'none';
     errorSection.style.display = 'none';
     convertBtn.disabled = true;
 
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('version', versionSelect.value);
+
+    // 模拟进度阶段
+    const stages = [
+        '正在分析音频...',
+        'PYIN 音高检测中...',
+        '谐波增强处理中...',
+        '生成 MIDI 音符...',
+    ];
+    let stageIdx = 0;
+    const stageTimer = setInterval(() => {
+        if (stageIdx < stages.length) {
+            updateProgress(stages[stageIdx]);
+            stageIdx++;
+        }
+    }, 4000);
 
     try {
         const response = await fetch('/api/convert', {
@@ -95,7 +116,7 @@ async function convert() {
             throw new Error(data.error || `服务器错误 (${response.status})`);
         }
 
-        // 显示结果
+        // 填充结果信息
         document.getElementById('resultFilename').textContent = data.filename;
         document.getElementById('resultVersion').textContent = data.version;
         document.getElementById('resultNotes').textContent = data.note_count + ' 个';
@@ -103,11 +124,45 @@ async function convert() {
         document.getElementById('downloadLink').href = data.download_url;
 
         resultSection.style.display = 'block';
+
+        // 音频预览
+        if (data.has_preview && data.preview_url) {
+            const player = document.getElementById('audioPlayer');
+            player.src = data.preview_url;
+            document.getElementById('audioPreviewBox').style.display = 'block';
+        }
+
+        // 可视化制品
+        let hasAnyViz = false;
+
+        if (data.has_waveform && data.waveform_url) {
+            document.getElementById('waveformImg').src = data.waveform_url;
+            document.getElementById('waveformCard').style.display = 'block';
+            hasAnyViz = true;
+        }
+
+        if (data.has_spectrogram && data.spectrogram_url) {
+            document.getElementById('spectrogramImg').src = data.spectrogram_url;
+            document.getElementById('spectrogramCard').style.display = 'block';
+            hasAnyViz = true;
+        }
+
+        if (data.has_sheet && data.sheet_url) {
+            document.getElementById('sheetImg').src = data.sheet_url;
+            document.getElementById('sheetCard').style.display = 'block';
+            hasAnyViz = true;
+        }
+
+        if (hasAnyViz) {
+            visualizations.style.display = 'block';
+        }
+
         resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     } catch (error) {
         showError(error.message);
     } finally {
+        clearInterval(stageTimer);
         progressSection.style.display = 'none';
         progressFill.classList.remove('active');
         convertBtn.disabled = false;
@@ -122,7 +177,16 @@ function resetForm() {
     fileInfo.style.display = 'none';
     convertBtn.disabled = true;
     resultSection.style.display = 'none';
+    visualizations.style.display = 'none';
     errorSection.style.display = 'none';
+    document.getElementById('audioPlayer').src = '';
+    document.getElementById('audioPreviewBox').style.display = 'none';
+    document.getElementById('waveformImg').src = '';
+    document.getElementById('spectrogramImg').src = '';
+    document.getElementById('sheetImg').src = '';
+    document.getElementById('waveformCard').style.display = 'none';
+    document.getElementById('spectrogramCard').style.display = 'none';
+    document.getElementById('sheetCard').style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

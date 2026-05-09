@@ -54,3 +54,7 @@ results/debug_*.mid
 results/generalization_test/
 results/generalization_final/
 scripts/debug_*.py
+
+# Web应用临时文件
+web_app/outputs/
+web_app/uploads/

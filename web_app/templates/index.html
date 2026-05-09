@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MP3 → MIDI 转换器</title>
+    <title>韵启 — MP3 → MIDI 转换器</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1><i class="fas fa-music"></i> MP3 → MIDI 转换器</h1>
+            <h1><i class="fas fa-music"></i> 韵启</h1>
             <p class="subtitle">上传音频文件，AI 自动识别旋律并生成 MIDI</p>
         </header>
 
@@ -83,6 +83,36 @@
                         <i class="fas fa-redo"></i> 再转换一个
                     </button>
                 </div>
+
+                <!-- 音频预览 -->
+                <div class="audio-preview" id="audioPreviewBox" style="display:none;">
+                    <h3><i class="fas fa-volume-up"></i> MIDI 音频预览</h3>
+                    <audio id="audioPlayer" controls></audio>
+                </div>
+            </div>
+
+            <!-- 可视化区域 -->
+            <div class="visualizations" id="visualizations" style="display:none;">
+
+                <!-- 波形图 -->
+                <div class="viz-card card" id="waveformCard" style="display:none;">
+                    <h3><i class="fas fa-wave-square"></i> 音频波形</h3>
+                    <img id="waveformImg" src="" alt="波形图" class="viz-img">
+                </div>
+
+                <!-- 频谱图 -->
+                <div class="viz-card card" id="spectrogramCard" style="display:none;">
+                    <h3><i class="fas fa-chart-bar"></i> 频谱分析</h3>
+                    <img id="spectrogramImg" src="" alt="频谱图" class="viz-img">
+                </div>
+
+                <!-- 乐谱 -->
+                <div class="viz-card card" id="sheetCard" style="display:none;">
+                    <h3><i class="fas fa-music"></i> 五线谱</h3>
+                    <img id="sheetImg" src="" alt="乐谱" class="viz-img">
+                    <p class="viz-hint">乐谱由 MuseScore 自动生成，仅供参考</p>
+                </div>
+
             </div>
 
             <!-- 错误 -->

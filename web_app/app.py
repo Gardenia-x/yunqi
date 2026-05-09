@@ -1,13 +1,13 @@
 """
 MP3 → MIDI 转换 Web 服务
-上传 MP3 音频，自动生成 MIDI 文件
+上传 MP3 音频，自动生成 MIDI 文件 + 乐谱/波形/频谱可视化
 基于 SimpleMIDIGenerator (v1.0 原始方法)
 """
 import os
 import sys
 import uuid
 import time
-import shutil
+import traceback
 from pathlib import Path
 
 from fastapi import FastAPI, File, UploadFile, Request, Form
@@ -22,7 +22,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pretty_midi
 from simple_midi_generator import SimpleMIDIGenerator
 
-app = FastAPI(title="MP3 → MIDI 转换器", version="1.0")
+# 服务模块
+from services.visualization import generate_waveform, generate_spectrogram, generate_midi_preview
+from services.sheet_music import generate_sheet, sheet_music_available
+
+app = FastAPI(title="MP3 → MIDI 转换器", version="2.0")
 
 # 配置
 BASE_DIR = Path(__file__).parent
@@ -87,23 +91,23 @@ VERSIONS = {
     },
 }
 
-# 任务存储（简单内存存储，生产环境建议用 Redis/DB）
+# 任务存储
 tasks: dict = {}
 
 
-def convert_mp3_to_midi(mp3_path: Path, version: str = "v1.0") -> tuple:
+def convert_mp3_to_midi(audio_path: Path, version: str = "v1.0") -> tuple:
     """
     将 MP3 文件转换为 MIDI
 
     Returns:
-        (midi_bytes, note_count, elapsed_time)
+        (midi, note_count, elapsed_time)
     """
     version_info = VERSIONS.get(version, VERSIONS["v1.0"])
     config = version_info["config"]
 
     start = time.time()
 
-    with open(mp3_path, "rb") as f:
+    with open(audio_path, "rb") as f:
         audio_bytes = f.read()
 
     generator = SimpleMIDIGenerator(config)
@@ -112,12 +116,60 @@ def convert_mp3_to_midi(mp3_path: Path, version: str = "v1.0") -> tuple:
     elapsed = time.time() - start
     note_count = len(midi.instruments[0].notes) if midi.instruments else 0
 
-    # 写入临时文件
-    task_id = uuid.uuid4().hex[:12]
-    output_path = OUTPUT_DIR / f"{task_id}.mid"
-    midi.write(str(output_path))
+    return midi, note_count, elapsed
 
-    return output_path, note_count, elapsed, task_id
+
+def generate_artifacts(
+    task_id: str, midi: pretty_midi.PrettyMIDI, audio_bytes: bytes, version_config: dict
+) -> dict:
+    """
+    生成可视化制品（波形、频谱、乐谱、音频预览）
+    失败不阻塞主流程，返回可用制品列表
+    """
+    artifacts = {}
+
+    # 波形图
+    try:
+        wave_path = OUTPUT_DIR / f"{task_id}_waveform.png"
+        wave_path.write_bytes(generate_waveform(audio_bytes))
+        artifacts["waveform"] = str(wave_path)
+        artifacts["has_waveform"] = True
+    except Exception:
+        artifacts["has_waveform"] = False
+
+    # 频谱图
+    try:
+        spec_path = OUTPUT_DIR / f"{task_id}_spectrogram.png"
+        hop = version_config.get("hop_length", 512)
+        spec_path.write_bytes(generate_spectrogram(audio_bytes, sr=44100, hop_length=hop))
+        artifacts["spectrogram"] = str(spec_path)
+        artifacts["has_spectrogram"] = True
+    except Exception:
+        artifacts["has_spectrogram"] = False
+
+    # 乐谱（需要 MuseScore）
+    try:
+        if sheet_music_available():
+            sheet_path = OUTPUT_DIR / f"{task_id}_sheet.png"
+            sheet_path.write_bytes(generate_sheet(midi, "png"))
+            artifacts["sheet"] = str(sheet_path)
+            artifacts["has_sheet"] = True
+        else:
+            artifacts["has_sheet"] = False
+    except Exception:
+        artifacts["has_sheet"] = False
+
+    # MIDI 音频预览
+    try:
+        preview_path = OUTPUT_DIR / f"{task_id}_preview.wav"
+        preview_data = generate_midi_preview(midi)
+        preview_path.write_bytes(preview_data)
+        artifacts["preview"] = str(preview_path)
+        artifacts["has_preview"] = True
+    except Exception:
+        artifacts["has_preview"] = False
+
+    return artifacts
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -127,17 +179,20 @@ async def index(request: Request):
         {"key": k, "name": v["name"], "desc": v["description"]}
         for k, v in VERSIONS.items()
     ]
+    has_musescore = sheet_music_available()
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "version_list": version_list},
+        {"request": request, "version_list": version_list, "has_musescore": has_musescore},
     )
 
 
 @app.post("/api/convert")
 async def api_convert(file: UploadFile = File(...), version: str = Form("v1.0")):
-    """上传 MP3 并转换为 MIDI"""
+    """上传 MP3 并转换为 MIDI，同时生成可视化制品"""
     # 验证文件类型
-    if not file.filename or not file.filename.lower().endswith((".mp3", ".wav", ".m4a", ".flac", ".ogg")):
+    if not file.filename or not file.filename.lower().endswith(
+        (".mp3", ".wav", ".m4a", ".flac", ".ogg")
+    ):
         return JSONResponse(
             {"error": "仅支持 MP3, WAV, M4A, FLAC, OGG 格式"},
             status_code=400,
@@ -165,9 +220,16 @@ async def api_convert(file: UploadFile = File(...), version: str = Form("v1.0"))
             f.write(content)
 
         # 转换为 MIDI
-        output_path, note_count, elapsed, task_id = convert_mp3_to_midi(
-            upload_path, version
-        )
+        midi, note_count, elapsed = convert_mp3_to_midi(upload_path, version)
+
+        # 保存 MIDI 文件
+        task_id = uuid.uuid4().hex[:12]
+        output_path = OUTPUT_DIR / f"{task_id}.mid"
+        midi.write(str(output_path))
+
+        # 生成可视化制品
+        version_config = VERSIONS[version]["config"]
+        artifacts = generate_artifacts(task_id, midi, content, version_config)
 
         # 记录任务
         tasks[task_id] = {
@@ -176,10 +238,11 @@ async def api_convert(file: UploadFile = File(...), version: str = Form("v1.0"))
             "note_count": note_count,
             "elapsed": round(elapsed, 1),
             "output": str(output_path),
+            "artifacts": artifacts,
             "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        return {
+        result = {
             "success": True,
             "task_id": task_id,
             "filename": file.filename,
@@ -187,7 +250,18 @@ async def api_convert(file: UploadFile = File(...), version: str = Form("v1.0"))
             "note_count": note_count,
             "elapsed_seconds": round(elapsed, 1),
             "download_url": f"/api/download/{task_id}",
+            # 可视化制品 URL
+            "has_waveform": artifacts.get("has_waveform", False),
+            "waveform_url": f"/api/waveform/{task_id}" if artifacts.get("has_waveform") else None,
+            "has_spectrogram": artifacts.get("has_spectrogram", False),
+            "spectrogram_url": f"/api/spectrogram/{task_id}" if artifacts.get("has_spectrogram") else None,
+            "has_sheet": artifacts.get("has_sheet", False),
+            "sheet_url": f"/api/sheet/{task_id}" if artifacts.get("has_sheet") else None,
+            "has_preview": artifacts.get("has_preview", False),
+            "preview_url": f"/api/preview/{task_id}" if artifacts.get("has_preview") else None,
         }
+
+        return result
 
     except Exception as e:
         return JSONResponse({"error": f"转换失败: {str(e)}"}, status_code=500)
@@ -213,7 +287,6 @@ async def api_download(task_id: str):
     if not output_path.exists():
         return JSONResponse({"error": "文件已被清理"}, status_code=404)
 
-    # 生成下载文件名
     original_name = Path(task["filename"]).stem
     download_name = f"{original_name}_{task['version']}.mid"
 
@@ -223,6 +296,44 @@ async def api_download(task_id: str):
         media_type="audio/midi",
         headers={"X-Note-Count": str(task["note_count"])},
     )
+
+
+@app.get("/api/waveform/{task_id}")
+async def api_waveform(task_id: str):
+    """获取波形图 PNG"""
+    return _serve_artifact(task_id, "waveform", "waveform.png", "image/png")
+
+
+@app.get("/api/spectrogram/{task_id}")
+async def api_spectrogram(task_id: str):
+    """获取频谱图 PNG"""
+    return _serve_artifact(task_id, "spectrogram", "spectrogram.png", "image/png")
+
+
+@app.get("/api/sheet/{task_id}")
+async def api_sheet(task_id: str):
+    """获取乐谱图片 PNG"""
+    return _serve_artifact(task_id, "sheet", "sheet.png", "image/png")
+
+
+@app.get("/api/preview/{task_id}")
+async def api_preview(task_id: str):
+    """获取 MIDI 音频预览 WAV"""
+    return _serve_artifact(task_id, "preview", "preview.wav", "audio/wav")
+
+
+def _serve_artifact(task_id: str, key: str, filename: str, media_type: str):
+    """通用制品文件响应"""
+    if task_id not in tasks:
+        return JSONResponse({"error": "任务不存在或已过期"}, status_code=404)
+
+    artifacts = tasks[task_id].get("artifacts", {})
+    file_path = artifacts.get(key)
+
+    if not file_path or not Path(file_path).exists():
+        return JSONResponse({"error": "文件不存在或已清理"}, status_code=404)
+
+    return FileResponse(path=file_path, filename=filename, media_type=media_type)
 
 
 @app.get("/api/versions")
@@ -240,15 +351,19 @@ async def api_versions():
 @app.get("/health")
 async def health():
     """健康检查"""
-    return {"status": "ok", "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")}
+    return {
+        "status": "ok",
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "musescore": sheet_music_available(),
+    }
 
 
-# 定时清理旧文件（每次请求时检查）
+# 定时清理旧文件
 @app.middleware("http")
 async def cleanup_old_files(request: Request, call_next):
     """清理超过 1 小时的旧文件"""
     now = time.time()
-    max_age = 3600  # 1 小时
+    max_age = 3600
 
     for directory in [UPLOAD_DIR, OUTPUT_DIR]:
         for f in directory.iterdir():

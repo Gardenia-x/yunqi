@@ -21,7 +21,7 @@ body {
 }
 
 .container {
-    max-width: 680px;
+    max-width: 780px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -43,7 +43,13 @@ body {
     padding: 28px;
     margin-bottom: 20px;
 }
-.card h2, .card h3 { margin-bottom: 16px; color: #fff; display: flex; align-items: center; gap: 10px; }
+.card h2, .card h3 {
+    margin-bottom: 16px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
 /* File drop zone */
 .file-drop-zone {
@@ -175,6 +181,36 @@ body {
 }
 .result-actions .btn-secondary { flex: 1; justify-content: center; }
 .result-actions .btn-download { flex: 2; justify-content: center; }
+
+/* Audio preview */
+.audio-preview {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+.audio-preview audio {
+    width: 100%;
+    margin-top: 8px;
+    border-radius: 8px;
+}
+
+/* Visualization cards */
+.visualizations {
+    margin-top: 0;
+}
+.viz-card { }
+.viz-card h3 { margin-bottom: 12px; }
+.viz-img {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.viz-hint {
+    margin-top: 8px;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-align: center;
+}
 
 /* Error */
 .error-section h3 { color: #f87171; }
