@@ -100,6 +100,7 @@ def generate_sheet(midi: pretty_midi.PrettyMIDI, fmt: str = "png") -> bytes:
         if fmt == "png":
             cmd.extend(["-T", "1"])
 
+        # QT_QPA_PLATFORM=offscreen 让 Qt 在无图形界面服务器上离屏渲染
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
@@ -107,6 +108,7 @@ def generate_sheet(midi: pretty_midi.PrettyMIDI, fmt: str = "png") -> bytes:
             timeout=300,
             encoding="utf-8",
             errors="replace",
+            env={**os.environ, "QT_QPA_PLATFORM": "offscreen"},
         )
 
         if not out_path.exists():
