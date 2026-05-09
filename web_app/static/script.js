@@ -132,28 +132,10 @@ async function convert() {
             document.getElementById('audioPreviewBox').style.display = 'block';
         }
 
-        // 可视化制品
-        let hasAnyViz = false;
-
-        if (data.has_waveform && data.waveform_url) {
-            document.getElementById('waveformImg').src = data.waveform_url;
-            document.getElementById('waveformCard').style.display = 'block';
-            hasAnyViz = true;
-        }
-
-        if (data.has_spectrogram && data.spectrogram_url) {
-            document.getElementById('spectrogramImg').src = data.spectrogram_url;
-            document.getElementById('spectrogramCard').style.display = 'block';
-            hasAnyViz = true;
-        }
-
+        // 乐谱
         if (data.has_sheet && data.sheet_url) {
             document.getElementById('sheetImg').src = data.sheet_url;
             document.getElementById('sheetCard').style.display = 'block';
-            hasAnyViz = true;
-        }
-
-        if (hasAnyViz) {
             visualizations.style.display = 'block';
         }
 
@@ -181,11 +163,7 @@ function resetForm() {
     errorSection.style.display = 'none';
     document.getElementById('audioPlayer').src = '';
     document.getElementById('audioPreviewBox').style.display = 'none';
-    document.getElementById('waveformImg').src = '';
-    document.getElementById('spectrogramImg').src = '';
     document.getElementById('sheetImg').src = '';
-    document.getElementById('waveformCard').style.display = 'none';
-    document.getElementById('spectrogramCard').style.display = 'none';
     document.getElementById('sheetCard').style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }

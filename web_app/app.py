@@ -23,7 +23,7 @@ import pretty_midi
 from simple_midi_generator import SimpleMIDIGenerator
 
 # 服务模块
-from services.visualization import generate_waveform, generate_spectrogram, generate_midi_preview
+from services.visualization import generate_midi_preview
 from services.sheet_music import generate_sheet, sheet_music_available
 
 app = FastAPI(title="MP3 → MIDI 转换器", version="2.0")
@@ -127,25 +127,6 @@ def generate_artifacts(
     失败不阻塞主流程，返回可用制品列表
     """
     artifacts = {}
-
-    # 波形图
-    try:
-        wave_path = OUTPUT_DIR / f"{task_id}_waveform.png"
-        wave_path.write_bytes(generate_waveform(audio_bytes))
-        artifacts["waveform"] = str(wave_path)
-        artifacts["has_waveform"] = True
-    except Exception:
-        artifacts["has_waveform"] = False
-
-    # 频谱图
-    try:
-        spec_path = OUTPUT_DIR / f"{task_id}_spectrogram.png"
-        hop = version_config.get("hop_length", 512)
-        spec_path.write_bytes(generate_spectrogram(audio_bytes, sr=44100, hop_length=hop))
-        artifacts["spectrogram"] = str(spec_path)
-        artifacts["has_spectrogram"] = True
-    except Exception:
-        artifacts["has_spectrogram"] = False
 
     # 乐谱（需要 MuseScore）
     try:
@@ -251,10 +232,6 @@ async def api_convert(file: UploadFile = File(...), version: str = Form("v1.0"))
             "elapsed_seconds": round(elapsed, 1),
             "download_url": f"/api/download/{task_id}",
             # 可视化制品 URL
-            "has_waveform": artifacts.get("has_waveform", False),
-            "waveform_url": f"/api/waveform/{task_id}" if artifacts.get("has_waveform") else None,
-            "has_spectrogram": artifacts.get("has_spectrogram", False),
-            "spectrogram_url": f"/api/spectrogram/{task_id}" if artifacts.get("has_spectrogram") else None,
             "has_sheet": artifacts.get("has_sheet", False),
             "sheet_url": f"/api/sheet/{task_id}" if artifacts.get("has_sheet") else None,
             "has_preview": artifacts.get("has_preview", False),
@@ -296,18 +273,6 @@ async def api_download(task_id: str):
         media_type="audio/midi",
         headers={"X-Note-Count": str(task["note_count"])},
     )
-
-
-@app.get("/api/waveform/{task_id}")
-async def api_waveform(task_id: str):
-    """获取波形图 PNG"""
-    return _serve_artifact(task_id, "waveform", "waveform.png", "image/png")
-
-
-@app.get("/api/spectrogram/{task_id}")
-async def api_spectrogram(task_id: str):
-    """获取频谱图 PNG"""
-    return _serve_artifact(task_id, "spectrogram", "spectrogram.png", "image/png")
 
 
 @app.get("/api/sheet/{task_id}")
