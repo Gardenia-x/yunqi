@@ -97,7 +97,20 @@ def generate_sheet(midi: pretty_midi.PrettyMIDI, fmt: str = "png") -> bytes:
             else:
                 raise FileNotFoundError("MuseScore 未生成 PNG 文件")
 
-        return actual_path.read_bytes()
+        # 将透明/深色背景转为白底，适合在暗色网页上清晰显示
+        from PIL import Image
+
+        img = Image.open(str(actual_path))
+        if img.mode == "RGBA":
+            bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            img = Image.alpha_composite(bg, img)
+        elif img.mode == "P":
+            img = img.convert("RGBA")
+            bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            img = Image.alpha_composite(bg, img)
+        out_buf = BytesIO()
+        img.convert("RGB").save(out_buf, format="PNG")
+        return out_buf.getvalue()
 
     finally:
         for f in temp_dir.glob(f"*{uid}*"):

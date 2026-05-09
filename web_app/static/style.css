@@ -205,6 +205,11 @@ body {
     border-radius: 6px;
     border: 1px solid rgba(255,255,255,0.08);
 }
+/* 乐谱图强制白底，确保在任何主题下都清晰可读 */
+#sheetImg {
+    background: #fff;
+    padding: 8px;
+}
 .viz-hint {
     margin-top: 8px;
     color: var(--text-dim);
