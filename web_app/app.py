@@ -47,60 +47,9 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 
 # 版本配置
 VERSIONS = {
-    "v1.0": {
-        "name": "v1.0 增强版",
-        "description": "算法全面改进：宽音域+力度+抗碎片化",
-        "config": {
-            "sr": 44100,
-            "hop_length": 512,
-            "min_freq": 65,
-            "max_freq": 2000,
-            "min_duration": 0.06,
-            "max_gap": 0.06,
-            "harmonic_margin": 4,
-            "semitone_tolerance": 1,
-            "pitch_smooth_kernel": 7,
-            "confidence_threshold": 0.3,
-            "voicing_threshold": 0.5,
-        },
-    },
-    "v2.0": {
-        "name": "v2.0 精细版",
-        "description": "更短帧移，捕捉快速音符变化",
-        "config": {
-            "sr": 44100,
-            "hop_length": 256,
-            "min_freq": 65,
-            "max_freq": 2000,
-            "min_duration": 0.05,
-            "max_gap": 0.04,
-            "harmonic_margin": 5,
-            "semitone_tolerance": 1,
-            "pitch_smooth_kernel": 5,
-            "confidence_threshold": 0.25,
-            "voicing_threshold": 0.45,
-        },
-    },
-    "v3.0": {
-        "name": "v3.0 灵敏版",
-        "description": "最高灵敏度，捕获最细微的旋律变化",
-        "config": {
-            "sr": 44100,
-            "hop_length": 256,
-            "min_freq": 55,
-            "max_freq": 3000,
-            "min_duration": 0.04,
-            "max_gap": 0.03,
-            "harmonic_margin": 6,
-            "semitone_tolerance": 0,
-            "pitch_smooth_kernel": 5,
-            "confidence_threshold": 0.2,
-            "voicing_threshold": 0.4,
-        },
-    },
-    "melody": {
-        "name": "旋律追踪版",
-        "description": "多声部旋律追踪：适合有伴奏的合唱/合奏",
+    "accompanied": {
+        "name": "有伴奏 / 合唱",
+        "description": "适合有伴奏、多乐器、多人合唱的音频",
         "config": {
             "sr": 44100,
             "hop_length": 512,
@@ -114,6 +63,23 @@ VERSIONS = {
             "confidence_threshold": 0.3,
             "voicing_threshold": 0.5,
             "detection_method": "melody",
+        },
+    },
+    "solo": {
+        "name": "独奏 / 清唱",
+        "description": "适合单人演唱、独奏乐器等干净音频",
+        "config": {
+            "sr": 44100,
+            "hop_length": 512,
+            "min_freq": 65,
+            "max_freq": 2000,
+            "min_duration": 0.06,
+            "max_gap": 0.06,
+            "harmonic_margin": 4,
+            "semitone_tolerance": 1,
+            "pitch_smooth_kernel": 7,
+            "confidence_threshold": 0.3,
+            "voicing_threshold": 0.5,
         },
     },
 }

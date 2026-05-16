@@ -31,7 +31,7 @@
                         <label>算法版本：</label>
                         <select id="versionSelect">
                             {% for v in version_list %}
-                            <option value="{{ v.key }}" {% if v.key == 'v1.0' %}selected{% endif %}>
+                            <option value="{{ v.key }}" {% if v.key == 'accompanied' %}selected{% endif %}>
                                 {{ v.name }} - {{ v.desc }}
                             </option>
                             {% endfor %}
@@ -111,7 +111,7 @@
         </main>
 
         <footer class="footer">
-            <p>基于 PYIN 音高检测 + 谐波增强算法 | 推荐使用 v1.0 版本获得最佳听觉体验</p>
+            <p>有伴奏选"有伴奏/合唱" | 独奏清唱选"独奏/清唱"</p>
         </footer>
     </div>
 
