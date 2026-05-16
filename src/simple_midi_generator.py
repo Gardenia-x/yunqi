@@ -28,19 +28,21 @@ class SimpleMIDIGenerator:
         return {
             'sr': 44100,
             'hop_length': 512,
-            'min_freq': 65,          # C2 — 覆盖更多人声和乐器范围
-            'max_freq': 2000,        # B6 — 捕获高音旋律
+            'min_freq': 65,
+            'max_freq': 2000,
             'n_thresholds': 200,
             'resolution': 0.1,
             'harmonic_margin': 4,
-            'min_duration': 0.06,    # 60ms，保留短装饰音
+            'min_duration': 0.06,
             'max_gap': 0.06,
-            'semitone_tolerance': 1, # 相邻帧差≤1半音视为同一音符（减少碎片化）
-            'pitch_smooth_kernel': 7,  # 中值滤波核大小
+            'semitone_tolerance': 1,
+            'pitch_smooth_kernel': 7,
             'confidence_threshold': 0.3,
             'voicing_threshold': 0.5,
             'preemphasis_coef': 0.97,
             'normalize_axis': 0,
+            # 检测方法: 'pyin' (单声部) / 'melody' (多声部旋律追踪)
+            'detection_method': 'pyin',
         }
 
     def process_audio(self, audio_bytes: bytes) -> pretty_midi.PrettyMIDI:
@@ -66,8 +68,11 @@ class SimpleMIDIGenerator:
                 else:
                     y = y[:target_length]
 
-            # 音高检测
-            f0, voiced_flag, amplitude = self._pitch_detection(y, sr)
+            # 音高检测（根据配置选择方法）
+            if self.config.get('detection_method') == 'melody':
+                f0, voiced_flag, amplitude = self._melody_tracking_detection(y, sr)
+            else:
+                f0, voiced_flag, amplitude = self._pitch_detection(y, sr)
 
             # MIDI生成（传入振幅用于力度控制）
             midi = self._create_midi(f0, voiced_flag, amplitude, sr)
@@ -154,6 +159,112 @@ class SimpleMIDIGenerator:
         final_voiced = has_pitch & energy_voiced & (fused_f0 >= fmin) & (fused_f0 <= fmax)
 
         return fused_f0, final_voiced, amplitude
+
+    def _melody_tracking_detection(self, y: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        多声部旋律追踪：piptrack 多候选 + 连续性追踪
+        适用于有伴奏的合唱/合奏音频，自动跟踪最连续的旋律线
+        """
+        hop = self.config['hop_length']
+        fmin = self.config['min_freq']
+        fmax = self.config['max_freq']
+
+        frame_length = max(2048, int(sr / fmin * 2))
+        frame_length = 2 ** int(np.ceil(np.log2(frame_length)))
+
+        # ---- piptrack：每帧返回多个音高候选 ----
+        pitches, magnitudes = librosa.piptrack(
+            y=y, sr=sr, fmin=fmin, fmax=fmax,
+            hop_length=hop, n_fft=frame_length,
+        )
+
+        n_candidates, n_frames = pitches.shape
+        n_top = min(5, n_candidates)
+
+        # ---- 每帧取 top-N 候选 ----
+        top_pitches = np.zeros((n_top, n_frames))
+        top_mags = np.zeros((n_top, n_frames))
+        for i in range(n_frames):
+            col_mag = magnitudes[:, i]
+            order = np.argsort(col_mag)[::-1][:n_top]
+            top_pitches[:, i] = pitches[order, i]
+            top_mags[:, i] = col_mag[order]
+
+        # ---- 计算每帧 RMS 能量 ----
+        rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop)[0]
+        rms_db = librosa.amplitude_to_db(rms, ref=np.max)
+        amplitude = np.clip((rms_db + 60) / 60, 0.05, 1.0)
+
+        # ---- 旋律追踪：贪婪地跟踪最连续的轮廓 ----
+        best_f0 = np.full(n_frames, np.nan)
+
+        # 从能量最强的帧开始（最有可能是旋律音）
+        start_frame = int(np.argmax(rms))
+        if top_mags[0, start_frame] > 0:
+            best_f0[start_frame] = top_pitches[0, start_frame]
+
+        # 向后追踪
+        prev_pitch = best_f0[start_frame]
+        for i in range(start_frame - 1, -1, -1):
+            if top_mags[0, i] <= 0:
+                continue
+            # 在候选者中找最接近前一音高且幅度较高的
+            best_score = np.inf
+            best_p = np.nan
+            for k in range(n_top):
+                p = top_pitches[k, i]
+                m = top_mags[k, i]
+                if p <= 0:
+                    continue
+                # 分数 = 音高变化（半音）+ 幅度惩罚
+                cents_change = abs(1200 * np.log2(max(p, prev_pitch) / min(p, prev_pitch))) if prev_pitch > 0 else 0
+                score = cents_change - 50 * (m / (top_mags[0, i] + 1e-9))
+                if score < best_score:
+                    best_score = score
+                    best_p = p
+            if best_score < 200:  # 最大允许 200 音分跳变（2半音）
+                best_f0[i] = best_p
+                prev_pitch = best_p
+            else:
+                best_f0[i] = np.nan
+
+        # 向前追踪
+        prev_pitch = best_f0[start_frame]
+        for i in range(start_frame + 1, n_frames):
+            if top_mags[0, i] <= 0:
+                continue
+            best_score = np.inf
+            best_p = np.nan
+            for k in range(n_top):
+                p = top_pitches[k, i]
+                m = top_mags[k, i]
+                if p <= 0:
+                    continue
+                cents_change = abs(1200 * np.log2(max(p, prev_pitch) / min(p, prev_pitch))) if prev_pitch > 0 else 0
+                score = cents_change - 50 * (m / (top_mags[0, i] + 1e-9))
+                if score < best_score:
+                    best_score = score
+                    best_p = p
+            if best_score < 200:
+                best_f0[i] = best_p
+                prev_pitch = best_p
+            else:
+                best_f0[i] = np.nan
+
+        # ---- 后处理：插值 + 中值滤波 ----
+        valid = ~np.isnan(best_f0)
+        if np.sum(valid) > 0:
+            x = np.arange(n_frames)
+            best_f0 = np.interp(x, x[valid], best_f0[valid])
+            kernel = self.config['pitch_smooth_kernel']
+            best_f0 = scipy.signal.medfilt(best_f0, kernel_size=kernel)
+
+        # ---- 发声判断 ----
+        energy_voiced = rms > np.median(rms) * 0.15
+        has_pitch = ~np.isnan(best_f0)
+        final_voiced = has_pitch & energy_voiced & (best_f0 >= fmin) & (best_f0 <= fmax)
+
+        return best_f0, final_voiced, amplitude
 
     def _create_midi(
         self, f0: np.ndarray, voiced_flag: np.ndarray,

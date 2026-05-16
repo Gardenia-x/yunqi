@@ -98,6 +98,24 @@ VERSIONS = {
             "voicing_threshold": 0.4,
         },
     },
+    "melody": {
+        "name": "旋律追踪版",
+        "description": "多声部旋律追踪：适合有伴奏的合唱/合奏",
+        "config": {
+            "sr": 44100,
+            "hop_length": 512,
+            "min_freq": 65,
+            "max_freq": 2000,
+            "min_duration": 0.06,
+            "max_gap": 0.06,
+            "semitone_tolerance": 1,
+            "pitch_smooth_kernel": 7,
+            "harmonic_margin": 4,
+            "confidence_threshold": 0.3,
+            "voicing_threshold": 0.5,
+            "detection_method": "melody",
+        },
+    },
 }
 
 # 任务存储
