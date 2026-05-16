@@ -134,24 +134,24 @@ class SimpleMIDIGenerator:
             f0_h = np.full_like(f0, np.nan)
             vo_flag_h = np.zeros_like(voiced_flag)
 
-        # ---- 融合：优先取有发声的、置信度高的 ----
+        # ---- 融合：PYIN 优先，低置信度时用谐波检测补充 ----
         conf_thresh = self.config['confidence_threshold']
         use_harmonic = (voiced_prob < conf_thresh) & vo_flag_h
         fused_f0 = np.where(use_harmonic, f0_h, f0)
-        fused_voiced = voiced_flag | (vo_flag_h & (voiced_prob >= conf_thresh * 0.5))
 
-        # ---- 后处理：插值 + 中值滤波 ----
-        valid = ~np.isnan(fused_f0)
-        if np.any(valid):
+        # 关键：以实际检测到音高的帧为准（而非 PYIN 保守的 Viterbi 判决）
+        has_pitch = ~np.isnan(fused_f0)
+
+        # ---- 后处理：插值（仅在检测帧之间短距离补全）+ 中值滤波 ----
+        if np.any(has_pitch):
             x = np.arange(len(fused_f0))
-            fused_f0 = np.interp(x, x[valid], fused_f0[valid])
-            # 中值滤波去除毛刺
+            fused_f0 = np.interp(x, x[has_pitch], fused_f0[has_pitch])
             kernel = self.config['pitch_smooth_kernel']
             fused_f0 = scipy.signal.medfilt(fused_f0, kernel_size=kernel)
 
-        # ---- 基于能量的二次发声判断 ----
-        energy_voiced = rms > np.median(rms) * 0.3
-        final_voiced = fused_voiced & energy_voiced & (fused_f0 >= fmin) & (fused_f0 <= fmax)
+        # ---- 能量辅助：滤除噪声帧 ----
+        energy_voiced = rms > np.median(rms) * 0.15
+        final_voiced = has_pitch & energy_voiced & (fused_f0 >= fmin) & (fused_f0 <= fmax)
 
         return fused_f0, final_voiced, amplitude
 
