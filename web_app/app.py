@@ -49,37 +49,18 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 VERSIONS = {
     "accompanied": {
         "name": "有伴奏 / 合唱",
-        "description": "适合有伴奏、多乐器、多人合唱的音频",
+        "description": "适合有伴奏、多乐器、多人合唱的音频 — 使用 Spotify Basic Pitch 复音转录",
         "config": {
-            "sr": 44100,
-            "hop_length": 512,
-            "min_freq": 65,
-            "max_freq": 2000,
-            "min_duration": 0.06,
-            "max_gap": 0.06,
-            "semitone_tolerance": 1,
-            "pitch_smooth_kernel": 7,
-            "harmonic_margin": 4,
+            "detection_method": "basic_pitch",
             "confidence_threshold": 0.3,
-            "voicing_threshold": 0.5,
-            "detection_method": "melody",
         },
     },
     "solo": {
         "name": "独奏 / 清唱",
-        "description": "适合单人演唱、独奏乐器等干净音频",
+        "description": "适合单人演唱、独奏乐器等干净音频 — 使用 Spotify Basic Pitch 复音转录",
         "config": {
-            "sr": 44100,
-            "hop_length": 512,
-            "min_freq": 65,
-            "max_freq": 2000,
-            "min_duration": 0.06,
-            "max_gap": 0.06,
-            "harmonic_margin": 4,
-            "semitone_tolerance": 1,
-            "pitch_smooth_kernel": 7,
-            "confidence_threshold": 0.3,
-            "voicing_threshold": 0.5,
+            "detection_method": "basic_pitch",
+            "confidence_threshold": 0.4,
         },
     },
 }
@@ -95,7 +76,9 @@ def convert_mp3_to_midi(audio_path: Path, version: str = "v1.0") -> tuple:
     Returns:
         (midi, note_count, elapsed_time)
     """
-    version_info = VERSIONS.get(version, VERSIONS["v1.0"])
+    if version not in VERSIONS:
+        raise ValueError(f"未知版本: {version}")
+    version_info = VERSIONS[version]
     config = version_info["config"]
 
     start = time.time()

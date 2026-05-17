@@ -17,7 +17,7 @@ import soundfile as sf
 
 
 class SimpleMIDIGenerator:
-    """基于PYIN的MIDI生成器，参数可配置"""
+    """MIDI生成器，支持 PYIN 和 Basic Pitch (Spotify) 两种方法"""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = self._get_default_config()
@@ -41,11 +41,50 @@ class SimpleMIDIGenerator:
             'voicing_threshold': 0.5,
             'preemphasis_coef': 0.97,
             'normalize_axis': 0,
-            # 检测方法: 'pyin' (单声部) / 'melody' (多声部旋律追踪)
-            'detection_method': 'pyin',
+            # 检测方法: 'basic_pitch' (复音，推荐) / 'pyin' (单声部)
+            'detection_method': 'basic_pitch',
         }
 
     def process_audio(self, audio_bytes: bytes) -> pretty_midi.PrettyMIDI:
+        method = self.config.get('detection_method', 'basic_pitch')
+        if method == 'basic_pitch':
+            return self._process_with_basic_pitch(audio_bytes)
+        else:
+            return self._process_with_pyin(audio_bytes)
+
+    def _process_with_basic_pitch(self, audio_bytes: bytes) -> pretty_midi.PrettyMIDI:
+        """使用 Spotify Basic Pitch 进行复音转录"""
+        from basic_pitch.inference import predict
+        from basic_pitch import ICASSP_2022_MODEL_PATH
+
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                tmp_path = tmp_file.name
+                tmp_file.write(audio_bytes)
+
+            model_path = Path(ICASSP_2022_MODEL_PATH).parent / "nmp.onnx"
+            _, midi_data, _ = predict(tmp_path, model_path)
+
+            if not midi_data.instruments or not midi_data.instruments[0].notes:
+                raise ValueError("Basic Pitch 未生成有效音符")
+
+            # 后处理：过滤力度过低的音符
+            notes = midi_data.instruments[0].notes
+            conf = self.config.get('confidence_threshold', 0.3)
+            notes = [n for n in notes if n.velocity >= conf * 100]
+            midi_data.instruments[0].notes = notes
+
+            return midi_data
+
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+
+    def _process_with_pyin(self, audio_bytes: bytes) -> pretty_midi.PrettyMIDI:
         tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
