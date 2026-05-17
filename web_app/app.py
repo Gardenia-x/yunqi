@@ -49,18 +49,29 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 VERSIONS = {
     "accompanied": {
         "name": "有伴奏 / 合唱",
-        "description": "适合有伴奏、多乐器、多人合唱的音频 — 使用 Spotify Basic Pitch 复音转录",
+        "description": "适合有伴奏、多乐器、多人合唱的音频",
         "config": {
             "detection_method": "basic_pitch",
             "confidence_threshold": 0.3,
+            "extract_melody": True,  # 从复音转录中提取主旋律线
         },
     },
     "solo": {
         "name": "独奏 / 清唱",
-        "description": "适合单人演唱、独奏乐器等干净音频 — 使用 Spotify Basic Pitch 复音转录",
+        "description": "适合单人演唱、独奏乐器等干净音频 — PYIN 单音检测",
         "config": {
-            "detection_method": "basic_pitch",
-            "confidence_threshold": 0.4,
+            "detection_method": "pyin",
+            "sr": 44100,
+            "hop_length": 512,
+            "min_freq": 65,
+            "max_freq": 2000,
+            "min_duration": 0.06,
+            "max_gap": 0.06,
+            "semitone_tolerance": 1,
+            "pitch_smooth_kernel": 7,
+            "harmonic_margin": 4,
+            "confidence_threshold": 0.3,
+            "voicing_threshold": 0.5,
         },
     },
 }
@@ -69,7 +80,7 @@ VERSIONS = {
 tasks: dict = {}
 
 
-def convert_mp3_to_midi(audio_path: Path, version: str = "v1.0") -> tuple:
+def convert_mp3_to_midi(audio_path: Path, version: str = "accompanied") -> tuple:
     """
     将 MP3 文件转换为 MIDI
 
@@ -79,20 +90,66 @@ def convert_mp3_to_midi(audio_path: Path, version: str = "v1.0") -> tuple:
     if version not in VERSIONS:
         raise ValueError(f"未知版本: {version}")
     version_info = VERSIONS[version]
-    config = version_info["config"]
+    config = version_info["config"].copy()
 
     start = time.time()
 
     with open(audio_path, "rb") as f:
         audio_bytes = f.read()
 
+    extract_melody = config.pop("extract_melody", False)
+
     generator = SimpleMIDIGenerator(config)
     midi = generator.process_audio(audio_bytes)
+
+    # 复音转录后提取主旋律线（仅保留每个时刻最高音）
+    if extract_melody and midi.instruments:
+        midi = _extract_melody_line(midi)
 
     elapsed = time.time() - start
     note_count = len(midi.instruments[0].notes) if midi.instruments else 0
 
     return midi, note_count, elapsed
+
+
+def _extract_melody_line(midi: pretty_midi.PrettyMIDI) -> pretty_midi.PrettyMIDI:
+    """
+    从复音 MIDI 中提取主旋律线：每个时刻只保留最高音高的音符。
+    这是针对 Basic Pitch 输出全复音结果的后处理。
+    """
+    notes = sorted(midi.instruments[0].notes, key=lambda n: (n.start, -n.pitch))
+
+    if not notes:
+        return midi
+
+    melody_notes = []
+    i = 0
+    while i < len(notes):
+        current = notes[i]
+        # 找出与当前音符重叠的所有音符
+        group = [current]
+        j = i + 1
+        while j < len(notes) and notes[j].start < current.end:
+            group.append(notes[j])
+            j += 1
+
+        # 只保留音高最高的音符
+        best = max(group, key=lambda n: (n.pitch, n.velocity))
+        melody_notes.append(pretty_midi.Note(
+            velocity=best.velocity,
+            pitch=best.pitch,
+            start=best.start,
+            end=best.end,
+        ))
+
+        # 跳到当前音符结束后
+        i = j
+
+    result = pretty_midi.PrettyMIDI()
+    instrument = pretty_midi.Instrument(program=0)
+    instrument.notes = melody_notes
+    result.instruments.append(instrument)
+    return result
 
 
 def generate_artifacts(
