@@ -32,11 +32,11 @@ class SimpleMIDIGenerator:
             'max_freq': 2000,
             'n_thresholds': 200,
             'resolution': 0.1,
-            'harmonic_margin': 4,
-            'min_duration': 0.06,
-            'max_gap': 0.06,
-            'semitone_tolerance': 1,
-            'pitch_smooth_kernel': 7,
+            'harmonic_margin': 3,
+            'min_duration': 0.10,
+            'max_gap': 0.05,
+            'semitone_tolerance': 0,
+            'pitch_smooth_kernel': 5,
             'confidence_threshold': 0.3,
             'voicing_threshold': 0.5,
             'preemphasis_coef': 0.97,
@@ -129,7 +129,7 @@ class SimpleMIDIGenerator:
 
     def _pitch_detection(self, y: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        改进的音高检测：单次 PYIN + 更好的后处理
+        改进的音高检测：PYIN + 谐波增强 + 能量过滤
 
         Returns:
             f0: 平滑后的基频序列 (Hz)
@@ -142,16 +142,12 @@ class SimpleMIDIGenerator:
 
         # 帧长自适应：确保至少包含2个周期的最低频率波长
         frame_length = max(2048, int(sr / fmin * 2))
-        frame_length = 2 ** int(np.ceil(np.log2(frame_length)))  # 向上取整到2的幂
+        frame_length = 2 ** int(np.ceil(np.log2(frame_length)))
 
         # ---- PYIN主检测 ----
         f0, voiced_flag, voiced_prob = librosa.pyin(
-            y,
-            fmin=fmin,
-            fmax=fmax,
-            sr=sr,
-            hop_length=hop,
-            frame_length=frame_length,
+            y, fmin=fmin, fmax=fmax, sr=sr,
+            hop_length=hop, frame_length=frame_length,
             n_thresholds=self.config['n_thresholds'],
             resolution=self.config['resolution'],
             fill_na=np.nan,
@@ -160,19 +156,14 @@ class SimpleMIDIGenerator:
         # ---- 计算每帧RMS能量 ----
         rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop)[0]
         rms_db = librosa.amplitude_to_db(rms, ref=np.max)
-        amplitude = np.clip((rms_db + 60) / 60, 0.05, 1.0)  # 归一化到 0.05-1.0
+        amplitude = np.clip((rms_db + 60) / 60, 0.05, 1.0)
 
         # ---- 谐波增强检测（作为补充） ----
         try:
             harmonic = librosa.effects.harmonic(y, margin=self.config['harmonic_margin'])
             f0_h, vo_flag_h, _ = librosa.pyin(
-                harmonic,
-                fmin=fmin,
-                fmax=fmax,
-                sr=sr,
-                hop_length=hop,
-                frame_length=frame_length,
-                fill_na=np.nan,
+                harmonic, fmin=fmin, fmax=fmax, sr=sr,
+                hop_length=hop, frame_length=frame_length, fill_na=np.nan,
             )
         except Exception:
             f0_h = np.full_like(f0, np.nan)
@@ -183,10 +174,10 @@ class SimpleMIDIGenerator:
         use_harmonic = (voiced_prob < conf_thresh) & vo_flag_h
         fused_f0 = np.where(use_harmonic, f0_h, f0)
 
-        # 关键：以实际检测到音高的帧为准（而非 PYIN 保守的 Viterbi 判决）
+        # 关键：以实际检测到音高的帧为准
         has_pitch = ~np.isnan(fused_f0)
 
-        # ---- 后处理：插值（仅在检测帧之间短距离补全）+ 中值滤波 ----
+        # ---- 后处理：插值 + 中值滤波 ----
         if np.any(has_pitch):
             x = np.arange(len(fused_f0))
             fused_f0 = np.interp(x, x[has_pitch], fused_f0[has_pitch])
@@ -310,15 +301,12 @@ class SimpleMIDIGenerator:
         amplitude: np.ndarray, sr: int
     ) -> pretty_midi.PrettyMIDI:
         """
-        改进的MIDI生成：
-        - 半音容差避免音符碎片化
-        - 基于能量的力度控制
-        - 最小静音段处理避免卡顿
+        MIDI生成：半音容差 + 能量力度 + 间隙容错
         """
         hop = self.config['hop_length']
         min_dur = self.config['min_duration']
         max_gap = self.config['max_gap']
-        tolerance = self.config['semitone_tolerance']
+        tolerance = self.config.get('semitone_tolerance', 1)
 
         midi = pretty_midi.PrettyMIDI()
         instrument = pretty_midi.Instrument(program=0)
@@ -327,7 +315,6 @@ class SimpleMIDIGenerator:
         pending_notes = []
 
         def finalize_note(note_dict):
-            """结束一个音符，检查最小时长"""
             dur = note_dict['end'] - note_dict['start']
             if dur >= min_dur:
                 avg_amp = np.mean(note_dict['amplitudes'])
@@ -350,47 +337,36 @@ class SimpleMIDIGenerator:
 
                 if current_note is None:
                     current_note = {
-                        'pitch': note_num,
-                        'start': time,
-                        'end': time,
-                        'amplitudes': [amp],
+                        'pitch': note_num, 'start': time,
+                        'end': time, 'amplitudes': [amp],
                     }
                 elif abs(note_num - current_note['pitch']) <= tolerance:
-                    # 音高在容差范围内 → 延续当前音符
                     current_note['end'] = time
                     current_note['amplitudes'].append(amp)
                 else:
-                    # 音高变化 → 结束旧音符，开始新音符
                     finalize_note(current_note)
                     current_note = {
                         'pitch': note_num,
                         'start': max(current_note['end'], time - max_gap),
-                        'end': time,
-                        'amplitudes': [amp],
+                        'end': time, 'amplitudes': [amp],
                     }
             else:
-                # 静音/非发声帧
                 if current_note is not None:
                     gap = time - current_note['end']
                     if gap > max_gap * 2:
-                        # 间隙过大 → 确认音符结束
                         finalize_note(current_note)
                         current_note = None
                     else:
-                        # 微小间隙 → 可能是PYIN的瞬时丢失，延长当前音符
                         current_note['end'] = time
 
-        # 处理最后一个音符
         if current_note is not None:
             finalize_note(current_note)
 
-        # ---- 后处理：重叠音符去重 ----
         if pending_notes:
             pending_notes.sort(key=lambda n: n.start)
             merged = [pending_notes[0]]
             for note in pending_notes[1:]:
                 prev = merged[-1]
-                # 相邻音符：相同音高且间隙极小 → 合并
                 if note.pitch == prev.pitch and (note.start - prev.end) < max_gap * 0.5:
                     prev.end = max(prev.end, note.end)
                 else:

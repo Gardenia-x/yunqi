@@ -58,20 +58,10 @@ VERSIONS = {
     },
     "solo": {
         "name": "独奏 / 清唱",
-        "description": "适合单人演唱、独奏乐器等干净音频 — PYIN 单音检测",
+        "description": "适合单人演唱、独奏乐器等干净音频",
         "config": {
-            "detection_method": "pyin",
-            "sr": 44100,
-            "hop_length": 512,
-            "min_freq": 65,
-            "max_freq": 2000,
-            "min_duration": 0.06,
-            "max_gap": 0.06,
-            "semitone_tolerance": 1,
-            "pitch_smooth_kernel": 7,
-            "harmonic_margin": 4,
-            "confidence_threshold": 0.3,
-            "voicing_threshold": 0.5,
+            "detection_method": "basic_pitch",
+            "confidence_threshold": 0.4,
         },
     },
 }
